@@ -1,0 +1,134 @@
+#region
+
+using System;
+using System.IO;
+
+#endregion
+
+namespace Paiza
+{
+    public class Program
+	{
+		private const byte Space = 0x20;
+		private const byte Ln = 0x0a;
+
+		private const byte Zero = 0x30;
+
+		private const int BuffSize = 1800000;
+		private const int BucketSize = 1000000;
+		private static readonly int[] Factor = {1, 10, 100, 1000, 10000, 100000, 1000000};
+
+		private static int _inPivot;
+		private static readonly byte[] InputBuff = new byte[BuffSize];
+
+		private static int[] _items;
+		private static int _itemCount;
+		private static readonly int[] Bucket = new int[BucketSize];
+
+		public static void Main(string[] args)
+		{
+			Console.OpenStandardInput().Read(InputBuff, 0, BuffSize);
+
+			_itemCount = Parse();
+			var campaignCount = Parse();
+
+			_items = new int[_itemCount];
+
+			var maxPrice = 0;
+
+			for (var i = 0; i < _itemCount; i++)
+			{
+				var price = Parse();
+				if (maxPrice < price) maxPrice = price;
+				++Bucket[price];
+			}
+
+			Sort(++maxPrice);
+
+			var wtr = new StreamWriter(Console.OpenStandardOutput());
+			for (var i = 0; i < campaignCount; i++) wtr.WriteLine(Find(Parse()));
+			wtr.Flush();
+		}
+
+		public static void Sort(int max)
+		{
+			var cnt = -1;
+			for (var i = 10; i < max; i++)
+			{
+				var tmp = Bucket[i];
+
+				if (tmp == 0) continue;
+
+				if (tmp == 1) _items[++cnt] = i;
+				else if (tmp == 2)
+				{
+					_items[++cnt] = i;
+					_items[++cnt] = i;
+				}
+				else for (var j = 0; j < Bucket[i]; j++) _items[++cnt] = i;
+			}
+		}
+
+
+		public static int Find(int targetPrice)
+		{
+			var ret = 0;
+
+			for (var i = 0; i < _items.Length - 1; i++)
+			{
+				var itemA = _items[i];
+
+				var expected = targetPrice - itemA;
+				if (expected <= 0) return ret;
+
+				var index = BinarySearch(i + 1, expected);
+
+				if (_items[index] == expected) return targetPrice;
+
+				if (_items[index] > expected) return ret;
+
+				var candidate = itemA + _items[index];
+
+				if (candidate > ret) ret = candidate;
+			}
+			return ret;
+		}
+
+
+		public static int BinarySearch(int idx, int target)
+		{
+			var head = idx;
+			var tail = _itemCount;
+			var piv = (head + tail) >> 1;
+
+
+			while (head != piv)
+			{
+				if (_items[piv] > target) tail = piv;
+				else if (_items[piv] < target) head = piv;
+				else return piv;
+
+				piv = (head + tail) >> 1;
+			}
+
+			return piv;
+		}
+
+
+		public static int Parse()
+		{
+			var digit = 1;
+
+			while ((InputBuff[++_inPivot] != Ln && InputBuff[_inPivot] != Space)) ++digit;
+
+			_inPivot -= (digit + 1);
+
+			var ret = (InputBuff[++_inPivot] - Zero)*Factor[--digit];
+			while (--digit != -1) ret += ((InputBuff[++_inPivot] - Zero)*Factor[digit]);
+
+			_inPivot += 2;
+
+			return ret;
+		}
+	}
+}
